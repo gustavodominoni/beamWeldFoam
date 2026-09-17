@@ -547,6 +547,37 @@ Foam::solvers::beamWeldFoam::~beamWeldFoam()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+void Foam::solvers::beamWeldFoam::motionCorrector()
+{
+    incompressibleVoF::motionCorrector();
+
+    // The heat-source ray tracing caches the cell-centre coordinates, the
+    // cell heights and the lists of unique cell-centre coordinates. All of
+    // these describe the mesh geometry, so mesh motion invalidates them and
+    // the beam would otherwise continue to be deposited at the old location.
+    if (mesh.changing())
+    {
+        // The ray tracing walks columns of cells along the y-axis, which
+        // only identifies a surface cell on a structured mesh of fixed
+        // topology. Refinement, layer addition and stitching break that
+        // assumption rather than merely moving the data.
+        if (mesh.topoChanged())
+        {
+            FatalErrorInFunction
+                << "The beamWeldFoam heat-source ray tracing requires a "
+                   "structured mesh of fixed topology, but the mesh topology "
+                   "changed." << nl
+                << "Mesh topology changes (refinement, layer addition, "
+                   "stitching) are not supported by the heat source."
+                << exit(FatalError);
+        }
+
+        findUniqueCoordinates(false);
+        calcCellGeometry();
+    }
+}
+
+
 void Foam::solvers::beamWeldFoam::prePredictor()
 {
     // Solve the phase-fraction equation and update the mixture properties

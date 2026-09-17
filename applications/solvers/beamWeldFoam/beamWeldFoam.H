@@ -290,7 +290,7 @@ protected:
 
         //- Find the unique cell-centre coordinates for the heat source
         //  ray-tracing
-        void findUniqueCoordinates();
+        void findUniqueCoordinates(const bool verbose = true);
 
         //- Calculate the cell geometry fields
         void calcCellGeometry();
@@ -335,6 +335,11 @@ public:
 
 
     // Member Functions
+
+        //- Corrections that follow mesh motion
+        //  Rebuilds the cached ray-tracing data, which mesh motion
+        //  invalidates
+        virtual void motionCorrector();
 
         //- Called at the start of the PIMPLE loop
         virtual void prePredictor();

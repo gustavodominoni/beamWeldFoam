@@ -83,7 +83,7 @@ static scalarList uniqueCoordinates
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::solvers::beamWeldFoam::findUniqueCoordinates()
+void Foam::solvers::beamWeldFoam::findUniqueCoordinates(const bool verbose)
 {
     const scalar coordTolerance = 1e-7;
 
@@ -93,13 +93,16 @@ void Foam::solvers::beamWeldFoam::findUniqueCoordinates()
     ylist_ = uniqueCoordinates(C, vector::Y, coordTolerance);
     zlist_ = uniqueCoordinates(C, vector::Z, coordTolerance);
 
-    Info<< "Unique cell-centre coordinates: x: " << xlist_.size()
-        << " y: " << ylist_.size()
-        << " z: " << zlist_.size() << endl;
-
-    if (ylist_.size())
+    if (verbose)
     {
-        Info<< "Lowest y co-ordinate: " << min(ylist_) << endl;
+        Info<< "Unique cell-centre coordinates: x: " << xlist_.size()
+            << " y: " << ylist_.size()
+            << " z: " << zlist_.size() << endl;
+
+        if (ylist_.size())
+        {
+            Info<< "Lowest y co-ordinate: " << min(ylist_) << endl;
+        }
     }
 }
 
