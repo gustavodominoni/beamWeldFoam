@@ -1,0 +1,50 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  13
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      physicalProperties.phase2;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+viscosityModel  constant;
+
+nu              1.48e-05;
+
+rho             0.1;
+
+
+// beamWeldFoam thermal properties
+
+// Liquid specific heat capacity [J/kg/K]
+cp              500;
+
+// Solid specific heat capacity [J/kg/K]
+cpsolid         500;
+
+// Liquid thermal conductivity [W/m/K]
+kappa           0.016;
+
+// Solid thermal conductivity [W/m/K]
+kappasolid      0.016;
+
+// Solidus temperature [K]
+Tsolidus        1.0;
+
+// Liquidus temperature [K]
+Tliquidus       10.0;
+
+// Latent heat of fusion [J/kg]
+LatentHeat      1.0;
+
+// Thermal expansion coefficient [1/K]
+beta            1.0e-5;
+
+// ************************************************************************* //

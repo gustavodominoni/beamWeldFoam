@@ -21,8 +21,6 @@ solvers
     {
         nAlphaCorr      2;
         nAlphaSubCycles 3;
-        cAlpha          1;
-	scAlpha		0.5;
 
         MULESCorr       yes;
         nLimiterIter    5;
@@ -107,7 +105,7 @@ PIMPLE
     nOuterCorrectors    1;
     nCorrectors         5;
     nNonOrthogonalCorrectors 0;
-    pRefCell        0.0;
+    pRefCell        0;
     pRefValue       0.0;
 }
 

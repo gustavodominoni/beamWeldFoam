@@ -1,5 +1,14 @@
 #!/bin/bash
 cd ${0%/*} || exit 1    # run from this directory
 
-# Clean the solver
-(cd applications/solvers/beamWeldFoam && wclean)
+# Check if OpenFOAM has been sourced
+if [[ -z "${WM_PROJECT}" ]]
+then
+    echo "Please source the OpenFOAM bashrc first!"
+    exit 1
+fi
+
+wclean libso applications/solvers/beamWeldFoam
+
+rm -f "${FOAM_USER_LIBBIN}/libbeamWeldFoam.so"
+rm -f "${FOAM_USER_APPBIN}/beamWeldFoam"

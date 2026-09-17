@@ -1,3 +1,8 @@
 beamWeldFoam.C
+updateProperties.C
+heatSource.C
+momentumPredictor.C
+thermophysicalPredictor.C
+pressureCorrector.C
 
-EXE = $(FOAM_USER_APPBIN)/beamWeldFoam
+LIB = $(FOAM_USER_LIBBIN)/libbeamWeldFoam

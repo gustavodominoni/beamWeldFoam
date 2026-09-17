@@ -11,5 +11,20 @@ then
     exit 1
 fi
 
-# Compile solver
-(cd applications/solvers/beamWeldFoam && wmake)
+if [[ "${WM_PROJECT_VERSION}" != "13" ]]
+then
+    echo "Warning: beamWeldFoam is developed for OpenFOAM-13" \
+         "(found OpenFOAM-${WM_PROJECT_VERSION})"
+fi
+
+# Compile the solver module library (libbeamWeldFoam.so)
+wmake libso applications/solvers/beamWeldFoam
+
+# Install the convenience wrapper script that runs foamRun with the module
+mkdir -p "${FOAM_USER_APPBIN}"
+cp bin/beamWeldFoam "${FOAM_USER_APPBIN}/beamWeldFoam"
+chmod +x "${FOAM_USER_APPBIN}/beamWeldFoam"
+
+echo
+echo "beamWeldFoam module built: ${FOAM_USER_LIBBIN}/libbeamWeldFoam.so"
+echo "Run a case with:  foamRun -solver beamWeldFoam  (or simply: beamWeldFoam)"
