@@ -1,50 +1,39 @@
 /*--------------------------------*- C++ -*----------------------------------*\
-| =========                 |                                                 |
-| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  v1812                                 |
-|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
-|    \\/     M anipulation  |                                                 |
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  13
+     \\/     M anipulation  |
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
-    version     2.0;
     format      ascii;
     class       dictionary;
+    location    "constant";
     object      phaseProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-type    massTransferMultiphaseSystem;
 
-phases  (solid liquid);
+phases          (phase1 phase2);
 
-liquid
-{
-    type            pureMovingPhaseModel;
-}
+sigma           1.5;
 
-solid
-{
-    type            pureStaticSolidPhaseModel;
-}
 
-interfacePorous
-(
-    (solid and liquid)
-    {
-        type            VollerPrakash;
-        solidPhase      alpha.solid;
-        Cu              1e7;
-    }
-);
+// beamWeldFoam interface and vapourisation properties
 
-massTransferModel
-(
-    (solid to liquid)
-    {
-        type            Lee;
-        C               40;
-        Tactivate       302.78;
-    }
-);
+// Temperature coefficient of surface tension [N/m/K]
+dsigmadT        -2e-4;
+
+// Atmospheric pressure [Pa]
+p0              100000.0;
+
+// Vapourisation temperature [K]
+Tvap            3000.0;
+
+// Molar mass [kg/mol]
+Mm              0.05;
+
+// Latent heat of vapourisation [J/kg]
+LatentHeatVap   6000000.0;
 
 // ************************************************************************* //

@@ -1,0 +1,12 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+# beamWeldFoam
+#
+# Convenience wrapper: runs the beamWeldFoam solver module with foamRun.
+# All arguments are passed on to foamRun, e.g.
+#
+#     beamWeldFoam
+#     beamWeldFoam -parallel
+#
+#------------------------------------------------------------------------------
+exec foamRun -solver beamWeldFoam "$@"

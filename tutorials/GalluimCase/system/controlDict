@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     icoReactingMultiphaseInterFoam;
+solver          beamWeldFoam;
 
 startFrom       latestTime;
 

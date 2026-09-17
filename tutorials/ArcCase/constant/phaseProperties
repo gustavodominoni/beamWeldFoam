@@ -1,0 +1,39 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  13
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      phaseProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+phases          (phase1 phase2);
+
+sigma           0.8;
+
+
+// beamWeldFoam interface and vapourisation properties
+
+// Temperature coefficient of surface tension [N/m/K]
+dsigmadT        -0.1e-4;
+
+// Atmospheric pressure [Pa]
+p0              100000.0;
+
+// Vapourisation temperature [K]
+Tvap            2743.0;
+
+// Molar mass [kg/mol]
+Mm              0.027;
+
+// Latent heat of vapourisation [J/kg]
+LatentHeatVap   10.518518e6;
+
+// ************************************************************************* //

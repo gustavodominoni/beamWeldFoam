@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     WeldFoam;
+solver          beamWeldFoam;
 
 startFrom       latestTime;
 

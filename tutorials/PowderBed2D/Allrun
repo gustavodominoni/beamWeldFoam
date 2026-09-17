@@ -16,13 +16,13 @@ runApplication setFields
 
 # Run the solver
 if [[ "$1" == "parallel" ]]; then
-    # Run in parallel                                                                                                                                                                                       
+    # Run in parallel
     runApplication decomposePar
-    runParallel beamWeldFoam
+    runParallel foamRun -solver beamWeldFoam
     runApplication reconstructPar
 else
-    # Run in serial                                                                                                                                                                            
-    runApplication beamWeldFoam
+    # Run in serial
+    runApplication foamRun -solver beamWeldFoam
 fi
 
 #------------------------------------------------------------------------------
