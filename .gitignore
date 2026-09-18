@@ -11,6 +11,12 @@ log
 8*
 9*
 *e-*
+
+# The simulation-output patterns above are aggressive (*e-* is meant for time
+# directories such as 1e-05, but also matches names like "case-files"). Never
+# let them swallow repository tooling.
+!.claude/
+!.claude/**
 processor*
 boundary
 faces
