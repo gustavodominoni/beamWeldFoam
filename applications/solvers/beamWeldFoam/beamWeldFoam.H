@@ -296,6 +296,10 @@ protected:
         //  energy equation
         bool latentHeatLinearisation_;
 
+        //- Switch to linearise the evaporative cooling implicitly in the
+        //  energy equation
+        bool evaporationLinearisation_;
+
 
     // Protected Member Functions
 

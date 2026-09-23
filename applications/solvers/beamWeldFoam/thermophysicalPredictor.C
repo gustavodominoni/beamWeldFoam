@@ -124,16 +124,21 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
             LatentHeat_
            *(fvc::ddt(rho, epsilon1_) + fvc::div(rhoPhi, epsilon1_));
 
-        // Evaporative cooling
-        Qv_ =
-            min
-            (
-                max((T_ - (Tvap_ - (TSmooth_/2.0)))/TSmooth_, scalar(0)),
-                scalar(1)
-            )
-           *0.82*LatentHeatVap_*Mm_*p0_
+        // Evaporative cooling, smoothly switched on over TSmooth around
+        // the vapourisation temperature
+        const volScalarField evapRamp
+        (
+            (T_ - (Tvap_ - (TSmooth_/2.0)))/TSmooth_
+        );
+
+        const volScalarField QvFull
+        (
+            0.82*LatentHeatVap_*Mm_*p0_
            *exp(LatentHeatVap_*Mm_*((T_ - Tvap_)/(R_*T_*Tvap_)))
-           /sqrt(2.0*pi*Mm_*R_*T_);
+           /sqrt(2.0*pi*Mm_*R_*T_)
+        );
+
+        Qv_ = min(max(evapRamp, scalar(0)), scalar(1))*QvFull;
 
         // Temperature consistent with the current liquid fraction
         Tcorr_ = (TLiquidus_ - TSolidus_)*epsilon1_ + TSolidus_;
@@ -167,6 +172,34 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
             );
 
             TEqn += fvm::Sp(latentCoeff, T_) - latentCoeff*Tcorr_;
+        }
+
+        if (evaporationLinearisation_)
+        {
+            // Linearise the evaporative cooling, which grows exponentially
+            // with temperature, about the current temperature. The term
+            // vanishes on convergence and makes the sink implicit, which
+            // keeps the temperature bounded for larger time steps.
+            const volScalarField dQvdT
+            (
+                max
+                (
+                    Qv_
+                   *(
+                        LatentHeatVap_*Mm_/(R_*sqr(T_))
+                      - 0.5/T_
+                    )
+                  + pos(evapRamp)*pos(1 - evapRamp)*QvFull/TSmooth_,
+                    dimensionedScalar(Qv_.dimensions()/dimTemperature, 0)
+                )
+            );
+
+            const volScalarField evapCoeff
+            (
+                dQvdT*magGradAlpha*thermalDamper_
+            );
+
+            TEqn += fvm::Sp(evapCoeff, T_) - evapCoeff*T_;
         }
 
         TEqn.relax();
