@@ -65,8 +65,9 @@ The liquid-fraction corrector linearises the latent heat source implicitly in th
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 
-* `p_rgh`: for large 3D meshes use `GAMG` with `tolerance 1e-8; relTol 0.01;`, keeping `relTol 0` for `p_rghFinal`, instead of `PCG`/`DIC` at `1e-12`.
-* `U` and `Temperature`: a tolerance of `1e-8` is normally sufficient; `PBiCGStab` with `DILU` is usually faster than a `symGaussSeidel` smoothSolver for `Temperature`.
+* `p_rgh`: a plain `GAMG` solver with the `GaussSeidel` smoother can stall on the first time step and, as in the ArcCase tutorial at t ≈ 0.0113 s, diverge. `PCG` preconditioned by `GAMG` with the `DICGaussSeidel` smoother (as now used by the ArcCase and PowderBed2D tutorials) is robust and needs at most a few tens of iterations. Switching PowderBed3D from `PCG`/`DIC` to `GAMG` gave no gain.
+* `Temperature`: `PBiCGStab` with `DILU` converges in far fewer iterations than a `symGaussSeidel` smoothSolver at the same tolerance (PowderBed3D: 1.3× faster per time step with identical results), and is now used by the tutorials. A tolerance of `1e-9` is normally sufficient.
+* `nAlphaSubCycles`: reducing it from 3 to 1 made PowderBed2D 15 % faster but visibly changed the melt pool within 50 time steps, so it should only be changed after checking the results.
 * `PIMPLE`: `nCorrectors 3` is usually enough.
 * `MELTING`: the number of liquid-fraction corrector iterations is reported in the log each time step. If it regularly reaches `maxTempCorrector`, the liquid fraction is not converged to `epsilonTolerance`.
 * Output: use `writeFormat binary;`, write less often and set `writeDiagnostics false;`.

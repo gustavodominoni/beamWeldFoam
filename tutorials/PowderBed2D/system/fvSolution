@@ -33,17 +33,17 @@ solvers
 
     p_rgh
     {
-        solver          GAMG;
+        solver          PCG;
+        preconditioner
+        {
+            preconditioner  GAMG;
+            tolerance       1e-9;
+            relTol          0;
+            smoother        DICGaussSeidel;
+        }
         tolerance       1e-9;
-        relTol          0.0;//0.005;//0.05;
-        smoother        GaussSeidel;//GaussSeidel;//
-        nPreSweeps      2;
-        nPostSweeps     3;
-        nFinestSweeps   2;
-        cacheAgglomeration on;
-        nCellsInCoarsestLevel 10;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
+        relTol          0;
+        maxIter         100;
     }
 
     p_rghFinal
@@ -109,8 +109,8 @@ solvers
         minIter         1;
         maxIter         500;//2
 */
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-9;
         relTol          0.0;
     }
