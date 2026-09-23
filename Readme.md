@@ -70,6 +70,17 @@ The following case settings trade some accuracy for speed. Validate them against
 * Output: use `writeFormat binary;`, write less often and set `writeDiagnostics false;`.
 * Parallel: use the `simple` or `hierarchical` decomposition with no split in the y (beam) direction.
 
+The heat source ray tracing walks precomputed, y-ordered columns of cells instead of searching the mesh for every cell each time step. Together with the removal of repeated work from the liquid-fraction corrector and PISO loops, this gave the following serial speed-ups over the previous version (OpenFOAM-13, identical results to within linear-solver round-off):
+
+| Case | Cells | Previous (s/step) | Current (s/step) | Speed-up |
+|---|---|---|---|---|
+| PowderBed2D, melting (restart from t = 1e-5 s, 50 steps) | 115k | 48.3 | 1.58 | 30× |
+| PowderBed2D, start-up (20 steps) | 115k | 46.8 | 1.0 | 47× |
+| ArcCase (to t = 0.01 s, 1020 steps) | 7.2k | 0.272 | 0.066 | 4.1× |
+| PowderBed3D (35 steps) | 216k | 2.84 | 2.21 | 1.3× |
+
+The gain is largest for 2D (one-cell-thick) meshes, for which the mesh search used previously was particularly slow.
+
 Cases prepared for the OpenFOAM-6 version of the solver (`constant/transportProperties`, `constant/turbulenceProperties`, `application` entry in `controlDict`, `cAlpha` in `fvSolution`) need to be converted to this layout; the tutorial cases in this repository serve as templates.
 
 ### Gallium Melting Case
