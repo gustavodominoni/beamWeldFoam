@@ -83,6 +83,15 @@ The heat source ray tracing walks precomputed, y-ordered columns of cells instea
 
 The gain is largest for 2D (one-cell-thick) meshes, for which the mesh search used previously was particularly slow.
 
+The implicit latent heat linearisation then reduced the number of liquid-fraction corrector iterations as follows (relative to the explicit update, with all of the above improvements in both):
+
+| Case | Corrector iterations per step | Wall time | Result |
+|---|---|---|---|
+| PowderBed2D, melting (restart from t = 1e-5 s, 48 steps) | 26.8 → 5.1 | 80.3 s → 53.8 s (1.5×) | melt area within 0.01 % at t = 3e-5 s |
+| GalliumCase (0–120 s) | 60.5 → 6.4 | 8050 s → 6969 s (1.2×) | melt fraction within 0.007 % and identical melt front at 60 s and 120 s |
+
+With the explicit update, the GalliumCase liquid fraction frequently did not converge to `epsilonTolerance` within `maxTempCorrector` iterations; with the linearisation every time step converged in 7–19 iterations.
+
 Cases prepared for the OpenFOAM-6 version of the solver (`constant/transportProperties`, `constant/turbulenceProperties`, `application` entry in `controlDict`, `cAlpha` in `fvSolution`) need to be converted to this layout; the tutorial cases in this repository serve as templates.
 
 ### Gallium Melting Case
