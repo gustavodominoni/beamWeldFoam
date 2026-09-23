@@ -58,6 +58,18 @@ The solver reads the standard OpenFOAM-13 `incompressibleVoF` case files plus th
 * `system/fvSolution`: the `MELTING` sub-dictionary with the liquid-fraction corrector controls and the heat source parameters, in addition to the usual `solvers` and `PIMPLE` entries. The interface compression coefficient is no longer set with `cAlpha` in `fvSolution` but selected with the `div(phi,alpha)` scheme in `system/fvSchemes`, e.g. `Gauss interfaceCompression vanLeer 1;`.
 * `initial/` (copied to `0/`): the `alpha.<phase1>`, `p_rgh`, `U` and `Temperature` fields.
 
+The `MELTING` dictionary also accepts the optional switch `writeDiagnostics` (default `true`). When set to `false`, the diagnostic fields (`cp`, `kappa`, `TSolidus`, `TLiquidus`, `LatentHeat`, `beta`, `rhok`, `DC`, `nneps1`, `sourceTerm`, `TRHS`, `ViscousDissipation`, `BeamProfile`, `Num_divU`, `Marangoni`, `pVap`, `Qv`, `ddte1`) are not written. This greatly reduces the output written by large 3D cases. `BeamProfile` is only evaluated at write times.
+
+### Performance tips
+The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
+
+* `p_rgh`: for large 3D meshes use `GAMG` with `tolerance 1e-8; relTol 0.01;`, keeping `relTol 0` for `p_rghFinal`, instead of `PCG`/`DIC` at `1e-12`.
+* `U` and `Temperature`: a tolerance of `1e-8` is normally sufficient; `PBiCGStab` with `DILU` is usually faster than a `symGaussSeidel` smoothSolver for `Temperature`.
+* `PIMPLE`: `nCorrectors 3` is usually enough.
+* `MELTING`: an `epsilonTolerance` of `1e-6`–`1e-7` usually needs far fewer liquid-fraction corrector iterations than `1e-9`; the number of iterations is reported in the log each time step.
+* Output: use `writeFormat binary;`, write less often and set `writeDiagnostics false;`.
+* Parallel: use the `simple` or `hierarchical` decomposition with no split in the y (beam) direction.
+
 Cases prepared for the OpenFOAM-6 version of the solver (`constant/transportProperties`, `constant/turbulenceProperties`, `application` entry in `controlDict`, `cAlpha` in `fvSolution`) need to be converted to this layout; the tutorial cases in this repository serve as templates.
 
 ### Gallium Melting Case

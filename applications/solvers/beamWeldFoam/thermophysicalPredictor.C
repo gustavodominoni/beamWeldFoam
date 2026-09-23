@@ -41,14 +41,13 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
 
     label iter = 0;
     scalar residual = 1;
-    scalar meanResidual = 1;
 
     TRHS_ = dimensionedScalar(TRHS_.dimensions(), 0);
 
     const volScalarField rhoCp(rho*cp_);
     const surfaceScalarField rhophicp(fvc::interpolate(cp_)*rhoPhi);
 
-    const volVectorField gradAlpha(fvc::grad(alpha1));
+    const volScalarField magGradAlpha(mag(gradAlpha1_));
 
     // Mixture dynamic viscosity
     const volScalarField limitedAlpha1
@@ -59,6 +58,36 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
     (
         limitedAlpha1*rho1*mixture.nuModel1().nu()
       + (scalar(1) - limitedAlpha1)*rho2*mixture.nuModel2().nu()
+    );
+
+    // Viscous dissipation, which depends only on the velocity and flux and
+    // is therefore constant during the liquid-fraction correction
+    {
+        const volTensorField gradU(fvc::grad(U));
+        const volTensorField tau
+        (
+            mu*gradU + mu*gradU.T() - (2.0/3.0)*mu*fvc::div(phi)*I
+        );
+
+        ViscousDissipation_ = tau && gradU;
+    }
+
+    if (damperSwitch_)
+    {
+        thermalDamper_ = 2.0*rhoCp/(rho1*cp1_ + rho2*cp2_);
+    }
+
+    // Part of the energy equation which does not change during the
+    // liquid-fraction correction
+    const fvScalarMatrix TEqnConst
+    (
+        fvm::ddt(rhoCp, T_)
+      + fvm::div(rhophicp, T_)
+      - fvm::Sp(fvc::ddt(rhoCp) + fvc::div(rhophicp), T_)
+      - fvm::laplacian(kappa_, T_)
+      - ViscousDissipation_
+     ==
+        sourceTerm_
     );
 
     do
@@ -73,15 +102,6 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
             LatentHeat_
            *(fvc::ddt(rho, epsilon1_) + fvc::div(rhoPhi, epsilon1_));
 
-        // Viscous dissipation
-        const volTensorField gradU(fvc::grad(U));
-        const volTensorField tau
-        (
-            mu*gradU + mu*gradU.T() - (2.0/3.0)*mu*fvc::div(phi)*I
-        );
-
-        ViscousDissipation_ = tau && gradU;
-
         // Evaporative cooling
         Qv_ =
             min
@@ -93,22 +113,12 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
            *exp(LatentHeatVap_*Mm_*((T_ - Tvap_)/(R_*T_*Tvap_)))
            /sqrt(2.0*pi*Mm_*R_*T_);
 
-        if (damperSwitch_)
-        {
-            thermalDamper_ = 2.0*rhoCp/(rho1*cp1_ + rho2*cp2_);
-        }
-
         fvScalarMatrix TEqn
         (
-            fvm::ddt(rhoCp, T_)
-          + fvm::div(rhophicp, T_)
-          - fvm::Sp(fvc::ddt(rhoCp) + fvc::div(rhophicp), T_)
-          - fvm::laplacian(kappa_, T_)
-          - ViscousDissipation_
+            TEqnConst
          ==
             fvModels().source(rhoCp, T_)
-          + sourceTerm_
-          - Qv_*mag(gradAlpha)*thermalDamper_
+          - Qv_*magGradAlpha*thermalDamper_
           - TRHS_
         );
 
@@ -134,6 +144,22 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
                 scalar(0)
             );
 
+        residual =
+            gMax
+            (
+                mag
+                (
+                    epsilon1_.primitiveField()
+                  - epsilon1_.prevIter().primitiveField()
+                )()
+            );
+    }
+    while
+    (
+        (iter < minTCorr_ || residual > epsilonTol_) && iter <= maxTCorr_
+    );
+
+    {
         const scalarField depsilon1
         (
             mag
@@ -143,22 +169,17 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
             )
         );
 
-        residual = gMax(depsilon1);
-
-        meanResidual =
+        const scalar meanResidual =
             gSum(depsilon1*mesh.V().primitiveField())
            /gSum(mesh.V().primitiveField());
 
-        Info<< "Correcting epsilon1, mean residual = " << meanResidual
+        Info<< "Correcting epsilon1: " << iter << " iterations"
+            << ", mean residual = " << meanResidual
             << ", max residual = " << residual
             << endl;
-
-        ddte1_ = fvc::ddt(epsilon1_);
     }
-    while
-    (
-        (iter < minTCorr_ || residual > epsilonTol_) && iter <= maxTCorr_
-    );
+
+    ddte1_ = fvc::ddt(epsilon1_);
 
     T_.correctBoundaryConditions();
 

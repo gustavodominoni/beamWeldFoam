@@ -128,7 +128,38 @@ bool Foam::solvers::beamWeldFoam::read()
 
     damperSwitch_ = meltingDict.lookupOrDefault<bool>("damperSwitch", false);
 
+    writeDiagnostics_ =
+        meltingDict.lookupOrDefault<bool>("writeDiagnostics", true);
+
+    setDiagnosticsWriteOpt();
+
     return true;
+}
+
+
+void Foam::solvers::beamWeldFoam::setDiagnosticsWriteOpt()
+{
+    const IOobject::writeOption w =
+        writeDiagnostics_ ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
+
+    cp_.writeOpt() = w;
+    kappa_.writeOpt() = w;
+    TSolidus_.writeOpt() = w;
+    TLiquidus_.writeOpt() = w;
+    LatentHeat_.writeOpt() = w;
+    beta_.writeOpt() = w;
+    rhok_.writeOpt() = w;
+    DC_.writeOpt() = w;
+    nneps1_.writeOpt() = w;
+    sourceTerm_.writeOpt() = w;
+    TRHS_.writeOpt() = w;
+    ViscousDissipation_.writeOpt() = w;
+    BeamProfile_.writeOpt() = w;
+    Num_divU_.writeOpt() = w;
+    Marangoni_.writeOpt() = w;
+    pVap_.writeOpt() = w;
+    Qv_.writeOpt() = w;
+    ddte1_.writeOpt() = w;
 }
 
 
@@ -461,6 +492,11 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
         dimensionedScalar(dimless, 1),
         zeroGradientFvPatchScalarField::typeName
     ),
+    gradAlpha1_
+    (
+        fieldIO("gradAlpha1", mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        fvc::grad(alpha1)
+    ),
 
     xcoord_
     (
@@ -498,7 +534,8 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     foc_shift_vel_(0),
     Q_ramp_rate_(0),
     tshift_(0),
-    damperSwitch_(false)
+    damperSwitch_(false),
+    writeDiagnostics_(true)
 {
     // Read the MELTING controls
     read();
@@ -506,6 +543,7 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     Info<< "\nFinding the unique cell-centre coordinates "
            "for the heat source ray-tracing\n" << endl;
     findUniqueCoordinates();
+    buildCellColumns();
     calcCellGeometry();
 
     // Initialise the mixture properties and liquid fraction from the
@@ -573,6 +611,7 @@ void Foam::solvers::beamWeldFoam::motionCorrector()
         }
 
         findUniqueCoordinates(false);
+        buildCellColumns();
         calcCellGeometry();
     }
 }
@@ -583,6 +622,10 @@ void Foam::solvers::beamWeldFoam::prePredictor()
     // Solve the phase-fraction equation and update the mixture properties
     // and mass flux
     incompressibleVoF::prePredictor();
+
+    // Cache the phase-fraction gradient used by the momentum and energy
+    // equations of this PIMPLE iteration
+    gradAlpha1_ = fvc::grad(alpha1);
 
     // Update the thermophysical properties of the mixture
     updateProperties();

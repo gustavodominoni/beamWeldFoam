@@ -48,6 +48,16 @@ void Foam::solvers::beamWeldFoam::pressureCorrector()
 
     const surfaceScalarField rAUf("rAUf", fvc::interpolate(rAU()));
 
+    // Surface tension, recoil pressure and Boussinesq buoyancy flux, which
+    // do not change during the pressure correction
+    const surfaceScalarField phig
+    (
+        (
+            surfaceTensionForce()
+          - buoyancy.ghf*fvc::snGrad(rho*rhok_)
+        )*rAUf*mesh.magSf()
+    );
+
     while (pimple.correct())
     {
         volVectorField HbyA(constrainHbyA(rAU()*UEqn.H(), U, p_rgh));
@@ -66,15 +76,6 @@ void Foam::solvers::beamWeldFoam::pressureCorrector()
             adjustPhi(phiHbyA, U, p_rgh);
             fvc::makeAbsolute(phiHbyA, U);
         }
-
-        // Surface tension, recoil pressure and Boussinesq buoyancy
-        surfaceScalarField phig
-        (
-            (
-                surfaceTensionForce()
-              - buoyancy.ghf*fvc::snGrad(rho*rhok_)
-            )*rAUf*mesh.magSf()
-        );
 
         phiHbyA += phig;
 
