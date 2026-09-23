@@ -131,6 +131,9 @@ bool Foam::solvers::beamWeldFoam::read()
     writeDiagnostics_ =
         meltingDict.lookupOrDefault<bool>("writeDiagnostics", true);
 
+    latentHeatLinearisation_ =
+        meltingDict.lookupOrDefault<bool>("latentHeatLinearisation", true);
+
     setDiagnosticsWriteOpt();
 
     return true;
@@ -535,7 +538,8 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     Q_ramp_rate_(0),
     tshift_(0),
     damperSwitch_(false),
-    writeDiagnostics_(true)
+    writeDiagnostics_(true),
+    latentHeatLinearisation_(true)
 {
     // Read the MELTING controls
     read();

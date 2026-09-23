@@ -90,6 +90,28 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
         sourceTerm_
     );
 
+    // Width of the mushy zone, the inverse of the slope of the liquid
+    // fraction with respect to temperature
+    const volScalarField deltaTm
+    (
+        max
+        (
+            TLiquidus_ - TSolidus_,
+            dimensionedScalar(dimTemperature, small)
+        )
+    );
+
+    const volScalarField rhoByDeltaT(rho/runTime.deltaT());
+
+    // Indicator of the cells changing phase, in which the latent heat
+    // source is linearised
+    volScalarField phaseChange
+    (
+        IOobject("phaseChange", runTime.name(), mesh),
+        mesh,
+        dimensionedScalar(dimless, 0)
+    );
+
     do
     {
         iter++;
@@ -113,6 +135,9 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
            *exp(LatentHeatVap_*Mm_*((T_ - Tvap_)/(R_*T_*Tvap_)))
            /sqrt(2.0*pi*Mm_*R_*T_);
 
+        // Temperature consistent with the current liquid fraction
+        Tcorr_ = (TLiquidus_ - TSolidus_)*epsilon1_ + TSolidus_;
+
         fvScalarMatrix TEqn
         (
             TEqnConst
@@ -122,6 +147,28 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
           - TRHS_
         );
 
+        if (latentHeatLinearisation_)
+        {
+            // Linearise the change of the latent heat source with
+            // temperature (Voller and Swaminathan) in the cells which are
+            // changing phase, i.e. not fully liquid and above the solidus
+            // or not fully solid and below the liquidus. The term vanishes
+            // on convergence, where T = Tcorr in all of these cells.
+            phaseChange =
+                max
+                (
+                    pos(1 - epsilon1_)*pos(T_ - TSolidus_),
+                    pos(epsilon1_)*pos(TLiquidus_ - T_)
+                );
+
+            const volScalarField latentCoeff
+            (
+                phaseChange*LatentHeat_*rhoByDeltaT/deltaTm
+            );
+
+            TEqn += fvm::Sp(latentCoeff, T_) - latentCoeff*Tcorr_;
+        }
+
         TEqn.relax();
 
         fvConstraints().constrain(TEqn);
@@ -130,19 +177,36 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
 
         fvConstraints().constrain(T_);
 
-        // Update the liquid fraction from the temperature
-        Tcorr_ = (TLiquidus_ - TSolidus_)*epsilon1_ + TSolidus_;
-
-        epsilon1_ =
-            max
-            (
-                min
+        // Update the liquid fraction from the temperature, consistently
+        // with the linearisation of the latent heat source
+        if (latentHeatLinearisation_)
+        {
+            epsilon1_ =
+                max
                 (
-                    epsilon1_ + (epsilonRel_*cp_/LatentHeat_)*(T_ - Tcorr_),
-                    scalar(1)
-                ),
-                scalar(0)
-            );
+                    min
+                    (
+                        epsilon1_
+                      + epsilonRel_*phaseChange*(T_ - Tcorr_)/deltaTm,
+                        scalar(1)
+                    ),
+                    scalar(0)
+                );
+        }
+        else
+        {
+            epsilon1_ =
+                max
+                (
+                    min
+                    (
+                        epsilon1_
+                      + (epsilonRel_*cp_/LatentHeat_)*(T_ - Tcorr_),
+                        scalar(1)
+                    ),
+                    scalar(0)
+                );
+        }
 
         residual =
             gMax
@@ -153,6 +217,34 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
                   - epsilon1_.prevIter().primitiveField()
                 )()
             );
+
+        if (latentHeatLinearisation_)
+        {
+            // Include the departure of the liquid fraction from its
+            // equilibrium value at the new temperature, which catches the
+            // cells that start changing phase during this corrector
+            residual =
+                max
+                (
+                    residual,
+                    gMax
+                    (
+                        mag
+                        (
+                            min
+                            (
+                                max
+                                (
+                                    (T_ - TSolidus_)/deltaTm,
+                                    scalar(0)
+                                ),
+                                scalar(1)
+                            )
+                          - epsilon1_
+                        )().primitiveField()
+                    )
+                );
+        }
     }
     while
     (

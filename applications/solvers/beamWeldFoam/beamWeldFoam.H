@@ -292,6 +292,10 @@ protected:
         //- Switch to write the diagnostic fields
         bool writeDiagnostics_;
 
+        //- Switch to linearise the latent heat source implicitly in the
+        //  energy equation
+        bool latentHeatLinearisation_;
+
 
     // Protected Member Functions
 

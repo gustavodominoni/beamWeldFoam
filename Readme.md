@@ -60,13 +60,15 @@ The solver reads the standard OpenFOAM-13 `incompressibleVoF` case files plus th
 
 The `MELTING` dictionary also accepts the optional switch `writeDiagnostics` (default `true`). When set to `false`, the diagnostic fields (`cp`, `kappa`, `TSolidus`, `TLiquidus`, `LatentHeat`, `beta`, `rhok`, `DC`, `nneps1`, `sourceTerm`, `TRHS`, `ViscousDissipation`, `BeamProfile`, `Num_divU`, `Marangoni`, `pVap`, `Qv`, `ddte1`) are not written. This greatly reduces the output written by large 3D cases. `BeamProfile` is only evaluated at write times.
 
+The liquid-fraction corrector linearises the latent heat source implicitly in the energy equation in the cells that are changing phase (the Voller–Swaminathan source-based method), and updates the liquid fraction consistently with this linearisation. This converges to the same solution as the explicit update of earlier versions, but in far fewer corrector iterations; convergence is judged on both the change in the liquid fraction and its departure from the equilibrium value at the new temperature. The earlier explicit scheme can be restored with `latentHeatLinearisation false;` in `MELTING`.
+
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 
 * `p_rgh`: for large 3D meshes use `GAMG` with `tolerance 1e-8; relTol 0.01;`, keeping `relTol 0` for `p_rghFinal`, instead of `PCG`/`DIC` at `1e-12`.
 * `U` and `Temperature`: a tolerance of `1e-8` is normally sufficient; `PBiCGStab` with `DILU` is usually faster than a `symGaussSeidel` smoothSolver for `Temperature`.
 * `PIMPLE`: `nCorrectors 3` is usually enough.
-* `MELTING`: an `epsilonTolerance` of `1e-6`–`1e-7` usually needs far fewer liquid-fraction corrector iterations than `1e-9`; the number of iterations is reported in the log each time step.
+* `MELTING`: the number of liquid-fraction corrector iterations is reported in the log each time step. If it regularly reaches `maxTempCorrector`, the liquid fraction is not converged to `epsilonTolerance`.
 * Output: use `writeFormat binary;`, write less often and set `writeDiagnostics false;`.
 * Parallel: use the `simple` or `hierarchical` decomposition with no split in the y (beam) direction.
 
