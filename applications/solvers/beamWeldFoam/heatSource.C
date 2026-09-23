@@ -178,7 +178,8 @@ void Foam::solvers::beamWeldFoam::buildCellColumns()
             y[i] = C[column[i]].y();
         }
 
-        const labelList order(sortedOrder(y));
+        labelList order;
+        sortedOrder(y, order);
 
         labelList& cellColumn = cellColumns_[columni];
         cellColumn.setSize(column.size());
