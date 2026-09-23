@@ -46,7 +46,7 @@ For parallel deployment, using MPI, following the setFields command:
 $ decomposePar
 $ mpirun -np 6 foamRun -solver beamWeldFoam -parallel >log &
 ```
-for deployment on 6 cores, or simply `./Allrun parallel`. The heat source ray-tracing assumes a structured (blockMesh) mesh and the `simple` or `hierarchical` decomposition methods should be used.
+for deployment on 6 cores, or simply `./Allrun parallel`. The heat source ray-tracing assumes a structured (blockMesh) mesh. Beam columns split between processors are handled by a parallel reduction, so any decomposition of such a mesh can be used.
 
 ### Case set-up
 The solver reads the standard OpenFOAM-13 `incompressibleVoF` case files plus the beamWeldFoam-specific entries:
@@ -70,7 +70,7 @@ The following case settings trade some accuracy for speed. Validate them against
 * `PIMPLE`: `nCorrectors 3` is usually enough.
 * `MELTING`: the number of liquid-fraction corrector iterations is reported in the log each time step. If it regularly reaches `maxTempCorrector`, the liquid fraction is not converged to `epsilonTolerance`.
 * Output: use `writeFormat binary;`, write less often and set `writeDiagnostics false;`.
-* Parallel: use the `simple` or `hierarchical` decomposition with no split in the y (beam) direction.
+* Parallel: a decomposition with no split in the y (beam) direction keeps each beam column on one processor, which avoids communication in the heat source ray-tracing.
 
 The heat source ray tracing walks precomputed, y-ordered columns of cells instead of searching the mesh for every cell each time step. Together with the removal of repeated work from the liquid-fraction corrector and PISO loops, this gave the following serial speed-ups over the previous version (OpenFOAM-13, identical results to within linear-solver round-off):
 

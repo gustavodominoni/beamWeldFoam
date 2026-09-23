@@ -58,9 +58,13 @@ void Foam::solvers::beamWeldFoam::updateProperties()
             dimensionedScalar(dimless, 0)
         );
 
-    const volVectorField gradepsilon1(fvc::grad(epsilon1_));
+    // Liquid-fraction interface normal, only needed for output
+    if (writeDiagnostics_ && runTime.writeTime())
+    {
+        const volVectorField gradepsilon1(fvc::grad(epsilon1_));
 
-    nneps1_ = gradepsilon1/(mag(gradepsilon1) + deltaN_);
+        nneps1_ = gradepsilon1/(mag(gradepsilon1) + deltaN_);
+    }
 
     // Mask the liquid fraction to remove isolated interface values
     const volScalarField e1temp(fvc::average(epsilon1_));

@@ -28,7 +28,7 @@ License
 #include "fvm.H"
 #include "surfaceInterpolate.H"
 #include "zeroGradientFvPatchFields.H"
-#include "SortableList.H"
+#include "ListOps.H"
 #include "DynamicList.H"
 #include "mathematicalConstants.H"
 
@@ -37,10 +37,27 @@ License
 namespace Foam
 {
 
-//- Collect the unique values of the coordinate component cmpt of the
-//  cell-centres lying on the line through the first cell-centre along that
-//  coordinate direction, i.e. sharing the other two coordinates with the
-//  first cell-centre (to within tol)
+//- Append the values of the ascending list values which differ from the
+//  previously kept value by at least tol to unique
+static void appendUnique
+(
+    const scalarList& values,
+    const scalar tol,
+    DynamicList<scalar>& unique
+)
+{
+    forAll(values, i)
+    {
+        if (unique.empty() || values[i] - unique.last() >= tol)
+        {
+            unique.append(values[i]);
+        }
+    }
+}
+
+
+//- Return the ascending list of the unique values (to within tol) of the
+//  coordinate component cmpt of the cell-centres of all processors
 static scalarList uniqueCoordinates
 (
     const vectorField& C,
@@ -48,34 +65,33 @@ static scalarList uniqueCoordinates
     const scalar tol
 )
 {
-    DynamicList<scalar> coords;
+    scalarList values(C.component(cmpt));
+    sort(values);
 
-    if (C.size())
+    DynamicList<scalar> unique;
+    appendUnique(values, tol, unique);
+
+    if (Pstream::parRun())
     {
-        const direction cmpt1 = (cmpt + 1) % 3;
-        const direction cmpt2 = (cmpt + 2) % 3;
+        List<scalarList> procValues(Pstream::nProcs());
+        procValues[Pstream::myProcNo()] = unique;
+        Pstream::gatherList(procValues);
+        Pstream::scatterList(procValues);
 
-        const vector& C0 = C[0];
-
-        forAll(C, celli)
+        DynamicList<scalar> allValues;
+        forAll(procValues, proci)
         {
-            const vector& Ci = C[celli];
-
-            if
-            (
-                mag(Ci[cmpt1] - C0[cmpt1]) < tol
-             && mag(Ci[cmpt2] - C0[cmpt2]) < tol
-            )
-            {
-                if (findIndex(coords, Ci[cmpt]) == -1)
-                {
-                    coords.append(Ci[cmpt]);
-                }
-            }
+            allValues.append(procValues[proci]);
         }
+
+        values = allValues;
+        sort(values);
+
+        unique.clear();
+        appendUnique(values, tol, unique);
     }
 
-    return scalarList(coords);
+    return scalarList(unique);
 }
 
 
@@ -134,12 +150,12 @@ void Foam::solvers::beamWeldFoam::buildCellColumns()
 
     const vectorField& C = mesh.C().primitiveField();
 
-    // Sorted copies of the unique coordinates for binary searching.
-    // The columns are indexed by the position of their x and z coordinates
-    // in xlist_ and zlist_.
-    SortableList<scalar> xs(xlist_);
-    SortableList<scalar> ys(ylist_);
-    SortableList<scalar> zs(zlist_);
+    // The unique coordinates are sorted and the same on all processors,
+    // so the columns are indexed consistently by the position of their
+    // x and z coordinates in xlist_ and zlist_
+    const scalarList& xs = xlist_;
+    const scalarList& ys = ylist_;
+    const scalarList& zs = zlist_;
 
     const label nx = xs.size();
 
@@ -268,8 +284,10 @@ void Foam::solvers::beamWeldFoam::updateHeatSource()
     sourceTerm_ = dimensionedScalar(sourceTerm_.dimensions(), 0);
 
     // Ray-trace along y for each (x, z) column of cells to find the first
-    // (lowest) cell containing the substrate and deposit the beam energy
-    // in that cell
+    // (lowest) cell containing the substrate
+    scalarField columnMinY(cellColumns_.size(), great);
+    labelList columnHit(cellColumns_.size(), -1);
+
     forAll(cellColumns_, columni)
     {
         const labelList& cellColumn = cellColumns_[columni];
@@ -282,20 +300,41 @@ void Foam::solvers::beamWeldFoam::updateHeatSource()
             // 0.01 for keyhole mode
             if (alpha1[celli] > HS_deposition_cutoff_)
             {
-                if (yDim_[celli] > 1e-12)
-                {
-                    sourceTerm_[celli] =
-                        beamIntensity
-                        (
-                            xcoord_[celli],
-                            C[celli].y(),
-                            zcoord_[celli],
-                            t
-                        )/yDim_[celli];
-                }
-
+                columnMinY[columni] = C[celli].y();
+                columnHit[columni] = celli;
                 break;
             }
+        }
+    }
+
+    // A column may be split between processors, in which case only the
+    // processor holding the lowest substrate cell deposits the energy
+    if (Pstream::parRun())
+    {
+        Pstream::listCombineGather(columnMinY, minEqOp<scalar>());
+        Pstream::listCombineScatter(columnMinY);
+    }
+
+    // Deposit the beam energy in the first cell of each column
+    forAll(columnHit, columni)
+    {
+        const label celli = columnHit[columni];
+
+        if
+        (
+            celli >= 0
+         && C[celli].y() <= columnMinY[columni]
+         && yDim_[celli] > 1e-12
+        )
+        {
+            sourceTerm_[celli] =
+                beamIntensity
+                (
+                    xcoord_[celli],
+                    C[celli].y(),
+                    zcoord_[celli],
+                    t
+                )/yDim_[celli];
         }
     }
 

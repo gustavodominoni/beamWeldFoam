@@ -139,7 +139,11 @@ void Foam::solvers::beamWeldFoam::pressureCorrector()
             );
             p_rgh = p - rho*buoyancy.gh*rhok_;
         }
+    }
 
+    // Divergence of the flux, only needed for output
+    if (writeDiagnostics_ && runTime.writeTime())
+    {
         Num_divU_ = fvc::div(phi);
     }
 
