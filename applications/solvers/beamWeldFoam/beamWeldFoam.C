@@ -135,7 +135,7 @@ bool Foam::solvers::beamWeldFoam::read()
         meltingDict.lookupOrDefault<bool>("latentHeatLinearisation", true);
 
     evaporationLinearisation_ =
-        meltingDict.lookupOrDefault<bool>("evaporationLinearisation", false);
+        meltingDict.lookupOrDefault<bool>("evaporationLinearisation", true);
 
     setDiagnosticsWriteOpt();
 
@@ -543,7 +543,7 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     damperSwitch_(false),
     writeDiagnostics_(true),
     latentHeatLinearisation_(true),
-    evaporationLinearisation_(false)
+    evaporationLinearisation_(true)
 {
     // Read the MELTING controls
     read();

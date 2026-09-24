@@ -23,7 +23,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         2;
+endTime         2;  // the beam leaves the domain at t = 0.12 s
 
 deltaT          1.0e-12;
 
@@ -33,7 +33,7 @@ writeInterval   1.0e-3;
 
 purgeWrite      0;
 
-writeFormat     ascii;
+writeFormat     binary;
 
 writePrecision  10;
 
@@ -50,7 +50,7 @@ adjustTimeStep  yes;
 maxCo           0.1;//0.1;
 maxAlphaCo      0.1;
 
-maxDeltaT       0.25e-7;
+maxDeltaT       1e-7;
 
 
 // ************************************************************************* //
