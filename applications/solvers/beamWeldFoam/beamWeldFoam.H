@@ -233,6 +233,9 @@ protected:
         //- Density-ratio damper for the interface heat sink
         volScalarField thermalDamper_;
 
+        //- Phase-fraction gradient, cached once per PIMPLE iteration
+        volVectorField gradAlpha1_;
+
 
     // Cell geometry fields used by the heat source ray-tracing
 
@@ -249,6 +252,10 @@ protected:
         scalarList xlist_;
         scalarList ylist_;
         scalarList zlist_;
+
+        //- Cells of each (x, z) column of the structured mesh, ordered by
+        //  increasing cell-centre y-coordinate
+        labelListList cellColumns_;
 
 
     // Controls
@@ -282,6 +289,17 @@ protected:
         //- Switch to damp the interface forces by the density ratio
         bool damperSwitch_;
 
+        //- Switch to write the diagnostic fields
+        bool writeDiagnostics_;
+
+        //- Switch to linearise the latent heat source implicitly in the
+        //  energy equation
+        bool latentHeatLinearisation_;
+
+        //- Switch to linearise the evaporative cooling implicitly in the
+        //  energy equation
+        bool evaporationLinearisation_;
+
 
     // Protected Member Functions
 
@@ -294,6 +312,14 @@ protected:
 
         //- Calculate the cell geometry fields
         void calcCellGeometry();
+
+        //- Build the ordered cell columns for the heat source ray-tracing
+        //  from the unique cell-centre coordinates
+        void buildCellColumns();
+
+        //- Set the write option of the diagnostic fields from
+        //  writeDiagnostics_
+        void setDiagnosticsWriteOpt();
 
         //- Update the mixture thermophysical properties
         void updateProperties();

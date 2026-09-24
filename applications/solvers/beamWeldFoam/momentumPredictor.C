@@ -37,15 +37,15 @@ void Foam::solvers::beamWeldFoam::momentumPredictor()
 
     // Darcy momentum damping in the solid and mushy zone
     DC_ =
-        DarcyConstantlarge_*pow((1.0 - epsilon1mask_), 2)
-       /(pow(epsilon1mask_, 3) + DarcyConstantsmall_);
+        DarcyConstantlarge_*sqr(1.0 - epsilon1mask_)
+       /(pow3(epsilon1mask_) + DarcyConstantsmall_);
 
     // Marangoni (thermocapillary) force at the interface
-    const volVectorField gradAlpha(fvc::grad(alpha1));
-    const volVectorField nHatM(gradAlpha/(mag(gradAlpha) + deltaN_));
+    const volScalarField magGradAlpha(mag(gradAlpha1_));
+    const volVectorField nHatM(gradAlpha1_/(magGradAlpha + deltaN_));
 
     Marangoni_ =
-        Marangoni_Constant_*(gradT_ - nHatM*(nHatM & gradT_))*mag(gradAlpha);
+        Marangoni_Constant_*(gradT_ - nHatM*(nHatM & gradT_))*magGradAlpha;
 
     if (damperSwitch_)
     {

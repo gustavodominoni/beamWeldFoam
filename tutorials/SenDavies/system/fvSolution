@@ -87,8 +87,8 @@ solvers
 
     Temperature
     {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-9;
         relTol          0.0;
     }

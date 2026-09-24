@@ -43,10 +43,10 @@ solvers
 
     p_rgh
     {
-        solver          PCG;
-        preconditioner  DIC;
+        solver          GAMG;
+        smoother        DICGaussSeidel;
         tolerance       1e-12;
-        relTol          0.0;
+        relTol          0;
     }
 
     p_rghFinal
@@ -65,8 +65,8 @@ solvers
 
     Temperature
     {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-12;
         relTol          0;
     }
@@ -85,7 +85,7 @@ PIMPLE
 {
     momentumPredictor   no;
     nOuterCorrectors    1;
-    nCorrectors         5;
+    nCorrectors         3;
     nNonOrthogonalCorrectors 0;
     pRefCell        0;
     pRefValue       0.0;
