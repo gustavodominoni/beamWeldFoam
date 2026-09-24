@@ -104,6 +104,13 @@ For the EB_3D laser welding case (864k cells, 4 cores, measured over short windo
 
 The pressure solver and corrector changes on their own gave identical results (to 1e-7 relative) at 1.8× the speed. The case also now writes in binary. Its `endTime` of 2 s lies far beyond the t = 0.12 s at which the beam leaves the domain; reducing it is the largest remaining saving if only the weld itself is of interest.
 
+`EB_3D_coarse` is a reduced version of EB_3D for workstations and laptops, run with `./Allrun parallel` on 12 processes. It uses the same set-up on a mesh coarsened by two in each direction (108k instead of 864k cells), with `maxCo 0.2`, `maxDeltaT 4e-7` and `endTime 0.12` s (when the beam leaves the domain). On 4 cores it took about 800 s per millisecond of simulated time once the keyhole had formed, so the whole weld takes about a day on 4 cores and correspondingly less on more. It was run stably to t = 10.5 ms. Compared with EB_3D:
+
+* Heating is slower at first, since the beam energy is spread over larger cells (peak temperature 1928 K instead of 3195 K at t = 5e-5 s), but the peak temperature at vapourisation is the same (3749 K instead of 3752 K).
+* The finer details of the melt pool and keyhole are lost, so it is suited to trying out the case and the parameters, not to quantitative results.
+
+From t = 5 to 5.5 ms, with the original time step (`maxCo 0.1`, `maxDeltaT 1e-7`) as the reference, the current settings are 3.6× faster, with the melt volume within 0.2 %, the mean metal temperature within 0.01 K and the same peak temperature. The keyhole flow is chaotic, so individual cell values differ between any two time steps, including 1e-7 and 2e-7 s.
+
 Cases prepared for the OpenFOAM-6 version of the solver (`constant/transportProperties`, `constant/turbulenceProperties`, `application` entry in `controlDict`, `cAlpha` in `fvSolution`) need to be converted to this layout; the tutorial cases in this repository serve as templates.
 
 ### Gallium Melting Case
