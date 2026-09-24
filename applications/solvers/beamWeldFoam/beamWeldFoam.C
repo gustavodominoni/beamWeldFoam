@@ -148,6 +148,8 @@ void Foam::solvers::beamWeldFoam::setDiagnosticsWriteOpt()
     const IOobject::writeOption w =
         writeDiagnostics_ ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
 
+    // gradT is always written: the momentum predictor uses the value from
+    // the previous time step, so it is needed to restart exactly
     cp_.writeOpt() = w;
     kappa_.writeOpt() = w;
     TSolidus_.writeOpt() = w;
