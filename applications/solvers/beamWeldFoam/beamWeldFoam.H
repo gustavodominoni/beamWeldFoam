@@ -123,6 +123,83 @@ protected:
         dimensionedScalar beta2_;
 
 
+    // Optional second metal (metal B)
+    //  Read from constant/physicalProperties.metalB if present. Phase 1 is
+    //  then a mixture of metal A (physicalProperties.<phase1>) and metal B,
+    //  the volume fraction of which is alpha.metalB.
+
+        //- Density of metal B
+        dimensionedScalar rhoB_;
+
+        //- Kinematic viscosity of liquid metal B
+        dimensionedScalar nuB_;
+
+        //- Liquid and solid specific heat capacity of metal B
+        dimensionedScalar cpB_;
+        dimensionedScalar cpBsolid_;
+
+        //- Liquid and solid thermal conductivity of metal B
+        dimensionedScalar kappaB_;
+        dimensionedScalar kappaBsolid_;
+
+        //- Solidus and liquidus temperature of metal B
+        dimensionedScalar TsolidusB_;
+        dimensionedScalar TliquidusB_;
+
+        //- Latent heat of fusion of metal B
+        dimensionedScalar LatentHeatB_;
+
+        //- Thermal expansion coefficient of metal B
+        dimensionedScalar betaB_;
+
+        //- Vapourisation temperature, molar mass and latent heat of
+        //  vapourisation of metal B, defaulting to those of metal A
+        dimensionedScalar TvapB_;
+        dimensionedScalar MmB_;
+        dimensionedScalar LatentHeatVapB_;
+
+        //- Surface tension of metal A and B, only used if they differ
+        dimensionedScalar sigmaA_;
+        dimensionedScalar sigmaB_;
+
+        //- Temperature coefficient of surface tension of metal B,
+        //  defaulting to that of metal A
+        dimensionedScalar dsigmadTB_;
+
+        //- Switch for the vapourisation properties of metal B differing
+        //  from those of metal A
+        bool metalBVapour_;
+
+        //- Switch for the surface tension of metal B differing from that
+        //  of metal A
+        bool metalBSigma_;
+
+        //- Switch for the temperature coefficient of surface tension of
+        //  metal B differing from that of metal A
+        bool metalBdSigmadT_;
+
+        //- Volume fraction of metal B
+        autoPtr<volScalarField> alphaMetalB_;
+
+        //- Fraction of the metal that is metal B, alpha.metalB/alpha1
+        autoPtr<volScalarField> metalBFraction_;
+
+        //- Volumetric flux of metal B
+        autoPtr<surfaceScalarField> alphaPhiMetalB_;
+
+        //- Fraction of the metal that is metal B at the interface, which
+        //  extends the fraction to the gas side of the interface cells
+        autoPtr<volScalarField> metalBSurfaceFraction_;
+
+        //- Gradient of the fraction of metal B at the interface, for the
+        //  solutal Marangoni force
+        autoPtr<volVectorField> gradMetalBSurfaceFraction_;
+
+        //- Mole fraction of metal B at the interface, for the vapour
+        //  pressure (Raoult's law)
+        autoPtr<volScalarField> metalBMoleFraction_;
+
+
     // Interface and vapourisation properties
     //  Read from constant/phaseProperties
 
@@ -320,6 +397,61 @@ protected:
         //- Set the write option of the diagnostic fields from
         //  writeDiagnostics_
         void setDiagnosticsWriteOpt();
+
+        //- Read the properties and volume fraction of metal B, if present
+        void readMetalB();
+
+        //- Update the fraction of the metal that is metal B from the volume
+        //  fractions
+        void correctMetalBFraction();
+
+        //- Transport the volume fraction of metal B with the metal flux
+        void transportMetalB();
+
+        //- Correct the mixture density, viscosity and mass flux for the
+        //  density and viscosity of metal B
+        void correctMetalBDensity();
+
+        //- Return the property of the metal, blended between the values a
+        //  of metal A and b of metal B by the fraction of metal B
+        tmp<volScalarField> metalProperty
+        (
+            const dimensionedScalar& a,
+            const dimensionedScalar& b
+        ) const;
+
+        //- Return the kinematic viscosity of the liquid metal
+        tmp<volScalarField> metalNu() const;
+
+        //- Return the property of the metal at the interface, blended
+        //  between the values a of metal A and b of metal B by the fraction
+        //  of metal B at the interface
+        tmp<volScalarField> surfaceMetalProperty
+        (
+            const dimensionedScalar& a,
+            const dimensionedScalar& b
+        ) const;
+
+        //- Return the smooth switch of the vapourisation terms around the
+        //  vapourisation temperature Tvap
+        tmp<volScalarField> vapourRamp(const dimensionedScalar& Tvap) const;
+
+        //- Return the saturated vapour pressure of a metal
+        tmp<volScalarField> vapourPressure
+        (
+            const dimensionedScalar& Tvap,
+            const dimensionedScalar& Mm,
+            const dimensionedScalar& LatentHeatVap
+        ) const;
+
+        //- Return the evaporative heat flux of a pure metal
+        //  (Hertz-Knudsen-Langmuir), before the vapourisation switch
+        tmp<volScalarField> evaporativeHeatFlux
+        (
+            const dimensionedScalar& Tvap,
+            const dimensionedScalar& Mm,
+            const dimensionedScalar& LatentHeatVap
+        ) const;
 
         //- Update the mixture thermophysical properties
         void updateProperties();

@@ -64,6 +64,27 @@ The liquid-fraction corrector linearises the latent heat source implicitly in th
 
 The evaporative cooling, which grows exponentially with temperature, is likewise linearised implicitly about the current temperature in the energy equation (`evaporationLinearisation`, default `true`). This leaves the solution unchanged until evaporation starts, but keeps the temperature bounded once it does: with the explicit treatment the EB_3D case failed with a negative temperature shortly after the onset of vapourisation (t = 6.3e-5 s), even at its original time step of 2.5e-8 s.
 
+### Welding two different metals
+A second metal is enabled by adding `constant/physicalProperties.metalB` and the field `alpha.metalB` (in `initial/`, set with `setFields`). The metal phase is then a mixture of metal A (`physicalProperties.<phase1>`) and metal B, and `alpha.metalB` is the volume fraction of metal B. It is carried with the metal flux, so the two metals mix in the melt pool. The fraction of the metal that is metal B, `alpha.metalB/alpha.<phase1>`, is written as `metalBFraction`, which shows the mixing (dilution) in the weld.
+
+`physicalProperties.metalB` contains `rho`, `nu`, `cp`, `cpsolid`, `kappa`, `kappasolid`, `Tsolidus`, `Tliquidus`, `LatentHeat` and `beta`. Each of these properties is blended between the two metals by the fraction of metal B. Each metal keeps its own density, and the mixture density, viscosity and mass flux are corrected for it. Metal B has a constant viscosity.
+
+`physicalProperties.metalB` may also contain the vapourisation and surface properties of metal B, `Tvap`, `Mm`, `LatentHeatVap`, `sigma` and `dsigmadT`, which otherwise default to those of metal A in `constant/phaseProperties` (`p0` is shared):
+
+* The recoil pressure and the evaporative cooling are the sums of those of the two metals, each weighted by its mole fraction at the surface (Raoult's law, assuming an ideal solution) and switched on around its own vapourisation temperature.
+* The surface tension of the curvature force is blended between the two metals. It can only differ from that of metal A if the `sigma` of metal A is a constant.
+* The Marangoni force includes, besides the thermal part with the blended `dsigmadT`, the solutal part (`sigma` of metal B − `sigma` of metal A) times the gradient of the fraction of metal B along the surface, which drives the flow from the metal of lower to that of higher surface tension.
+
+These surface terms use the fraction of metal B averaged over the neighbouring cells (averaged twice), which extends it to the gas side of the interface cells; otherwise the surface above metal B would behave as metal A. Each of these terms is only evaluated if the corresponding property of metal B differs from that of metal A.
+
+Without `physicalProperties.metalB` the solver is unchanged: EB_3D_coarse to t = 1e-4 s and a window of it in the keyhole phase give bit-identical results at the same speed, as does a run with metal B given the properties of metal A. With metal B at twice the density of metal A, the run was stable and the total volume of metal B was conserved exactly. With vapourisation and surface properties of metal B equal to those of metal A to 12 digits, which uses the two-metal terms, the results agree to 1e-11 relative. With a vapourisation temperature of metal B 290 K lower, its side of the pool peaked 560 K cooler and evaporated more. On the flat surface away from the joint the solutal Marangoni force is zero to round-off. Setting the vapourisation and surface properties of metal B changed the time per step by between −0.5 % and +1.6 % in two measurements, within the run-to-run variation.
+
+The `EB_3D_dissimilar` tutorial, based on EB_3D_coarse, welds a plate of 316L stainless steel (x < 0) to one of low-carbon steel (x > 0) along the line between them. The property values are representative only and should be replaced with data for the alloys of interest.
+
+Run on 4 cores to t = 3 ms, it was stable and took about 1800 s per millisecond of simulated time. The two metals start to mix in the melt pool from about 1.5 ms, and the volume of metal B stayed within 0.003 % of its initial value (the total metal volume, which is conserved by the standard phase-fraction transport, within 0.007 %). The peak temperature reached about 4600 K, 1500 K above the vapourisation temperature: with the vapourisation properties of iron, the evaporative cooling and recoil pressure limit the temperature much less than in EB_3D, the molar mass of which (`Mm 0.446`) is ten times that of Ti-6Al-4V (0.0446 kg/mol), making its evaporation correspondingly stiffer.
+
+With the vapourisation and surface properties of the low-carbon steel set for metal B (vapourisation temperature 3134 K, surface tension 1.9 N/m, `dsigmadT` −3.5e-4 N/m/K), the run to t = 3 ms took the same time (5352 s against 5347 s), the volume of metal B stayed within 0.003 % and the peak temperature was up to about 100 K higher.
+
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 

@@ -36,18 +36,29 @@ void Foam::solvers::beamWeldFoam::updateProperties()
 {
     // Mixture specific heat capacity and thermal conductivity blended
     // between the solid and liquid values using the liquid fraction
+    // The metal (phase 1) properties are blended between metal A and the
+    // optional metal B
     cp_ =
-        epsilon1_*(alpha1*cp1_ + alpha2*cp2_)
-      + (1.0 - epsilon1_)*(alpha1*cp1solid_ + alpha2*cp2solid_);
+        epsilon1_*(alpha1*metalProperty(cp1_, cpB_) + alpha2*cp2_)
+      + (1.0 - epsilon1_)
+       *(alpha1*metalProperty(cp1solid_, cpBsolid_) + alpha2*cp2solid_);
 
     kappa_ =
-        epsilon1_*(alpha1*kappa1_ + alpha2*kappa2_)
-      + (1.0 - epsilon1_)*(alpha1*kappa1solid_ + alpha2*kappa2solid_);
+        epsilon1_*(alpha1*metalProperty(kappa1_, kappaB_) + alpha2*kappa2_)
+      + (1.0 - epsilon1_)
+       *(
+            alpha1*metalProperty(kappa1solid_, kappaBsolid_)
+          + alpha2*kappa2solid_
+        );
 
-    TSolidus_ = alpha1*Tsolidus1_ + alpha2*Tsolidus2_;
-    TLiquidus_ = alpha1*Tliquidus1_ + alpha2*Tliquidus2_;
-    LatentHeat_ = alpha1*LatentHeat1_ + alpha2*LatentHeat2_;
-    beta_ = alpha1*beta1_ + alpha2*beta2_;
+    TSolidus_ =
+        alpha1*metalProperty(Tsolidus1_, TsolidusB_) + alpha2*Tsolidus2_;
+    TLiquidus_ =
+        alpha1*metalProperty(Tliquidus1_, TliquidusB_) + alpha2*Tliquidus2_;
+    LatentHeat_ =
+        alpha1*metalProperty(LatentHeat1_, LatentHeatB_)
+      + alpha2*LatentHeat2_;
+    beta_ = alpha1*metalProperty(beta1_, betaB_) + alpha2*beta2_;
 
     // Boussinesq density ratio
     rhok_ =

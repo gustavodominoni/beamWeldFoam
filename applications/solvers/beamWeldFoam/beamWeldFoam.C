@@ -313,6 +313,26 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
         readProperty("beta2", dimless/dimTemperature, mixture.nuModel2(), "beta")
     ),
 
+    rhoB_("rhoB", dimDensity, 0),
+    nuB_("nuB", dimKinematicViscosity, 0),
+    cpB_("cpB", dimSpecificHeatCapacity, 0),
+    cpBsolid_("cpBsolid", dimSpecificHeatCapacity, 0),
+    kappaB_("kappaB", dimThermalConductivity, 0),
+    kappaBsolid_("kappaBsolid", dimThermalConductivity, 0),
+    TsolidusB_("TsolidusB", dimTemperature, 0),
+    TliquidusB_("TliquidusB", dimTemperature, 0),
+    LatentHeatB_("LatentHeatB", dimEnergy/dimMass, 0),
+    betaB_("betaB", dimless/dimTemperature, 0),
+    TvapB_("TvapB", dimTemperature, 0),
+    MmB_("MmB", dimMass/dimMoles, 0),
+    LatentHeatVapB_("LatentHeatVapB", dimEnergy/dimMass, 0),
+    sigmaA_("sigmaA", dimMass/sqr(dimTime), 0),
+    sigmaB_("sigmaB", dimMass/sqr(dimTime), 0),
+    dsigmadTB_("dsigmadTB", dimensionSet(1, 0, -2, -1, 0), 0),
+    metalBVapour_(false),
+    metalBSigma_(false),
+    metalBdSigmadT_(false),
+
     Marangoni_Constant_
     (
         readProperty
@@ -556,10 +576,16 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     buildCellColumns();
     calcCellGeometry();
 
+    // Read the optional second metal and correct the mixture density and
+    // viscosity for it
+    readMetalB();
+
     // Initialise the mixture properties and liquid fraction from the
     // initial temperature field
-    TSolidus_ = alpha1*Tsolidus1_ + alpha2*Tsolidus2_;
-    TLiquidus_ = alpha1*Tliquidus1_ + alpha2*Tliquidus2_;
+    TSolidus_ =
+        alpha1*metalProperty(Tsolidus1_, TsolidusB_) + alpha2*Tsolidus2_;
+    TLiquidus_ =
+        alpha1*metalProperty(Tliquidus1_, TliquidusB_) + alpha2*Tliquidus2_;
 
     epsilon1_ =
         max
@@ -633,6 +659,14 @@ void Foam::solvers::beamWeldFoam::prePredictor()
     // and mass flux
     incompressibleVoF::prePredictor();
 
+    // Transport the second metal and correct the mixture density,
+    // viscosity and mass flux for it
+    if (alphaMetalB_.valid())
+    {
+        transportMetalB();
+        correctMetalBDensity();
+    }
+
     // Cache the phase-fraction gradient used by the momentum and energy
     // equations of this PIMPLE iteration
     gradAlpha1_ = fvc::grad(alpha1);
@@ -648,11 +682,30 @@ void Foam::solvers::beamWeldFoam::prePredictor()
 Foam::tmp<Foam::surfaceScalarField>
 Foam::solvers::beamWeldFoam::surfaceTensionForce() const
 {
-    return
+    if (metalBSigma_)
+    {
+        // Surface tension of the local metal, blended between metal A and
+        // metal B at the interface
+        const volScalarField sigmaRatio
         (
-            interface.surfaceTensionForce()
-          + fvc::interpolate(pVap_)*fvc::snGrad(alpha1)
-        )*fvc::interpolate(damper_);
+            1 + metalBSurfaceFraction_()*(sigmaB_/sigmaA_ - 1)
+        );
+
+        return
+            (
+                fvc::interpolate(interface.sigmaK()*sigmaRatio)
+               *fvc::snGrad(alpha1)
+              + fvc::interpolate(pVap_)*fvc::snGrad(alpha1)
+            )*fvc::interpolate(damper_);
+    }
+    else
+    {
+        return
+            (
+                interface.surfaceTensionForce()
+              + fvc::interpolate(pVap_)*fvc::snGrad(alpha1)
+            )*fvc::interpolate(damper_);
+    }
 }
 
 

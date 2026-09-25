@@ -1,5 +1,6 @@
 beamWeldFoam.C
 updateProperties.C
+metalB.C
 heatSource.C
 momentumPredictor.C
 thermophysicalPredictor.C
