@@ -83,6 +83,8 @@ The `EB_3D_dissimilar` tutorial, based on EB_3D_coarse, welds a plate of 316L st
 
 Run on 4 cores to t = 3 ms, it was stable and took about 1800 s per millisecond of simulated time. The two metals start to mix in the melt pool from about 1.5 ms, and the volume of metal B stayed within 0.003 % of its initial value (the total metal volume, which is conserved by the standard phase-fraction transport, within 0.007 %). The peak temperature reached about 4600 K, 1500 K above the vapourisation temperature: with the vapourisation properties of iron, the evaporative cooling and recoil pressure limit the temperature much less than in EB_3D, the molar mass of which (`Mm 0.446`) is ten times that of Ti-6Al-4V (0.0446 kg/mol), making its evaporation correspondingly stiffer.
 
+With the vapourisation and surface properties of the low-carbon steel set for metal B (vapourisation temperature 3134 K, surface tension 1.9 N/m, `dsigmadT` −3.5e-4 N/m/K), the run to t = 3 ms took the same time (5352 s against 5347 s), the volume of metal B stayed within 0.003 % and the peak temperature was up to about 100 K higher.
+
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 
