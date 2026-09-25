@@ -73,6 +73,8 @@ Without `physicalProperties.metalB` the solver is unchanged: EB_3D_coarse to t =
 
 The `EB_3D_dissimilar` tutorial, based on EB_3D_coarse, welds a plate of 316L stainless steel (x < 0) to one of low-carbon steel (x > 0) along the line between them. The property values are representative only and should be replaced with data for the alloys of interest.
 
+Run on 4 cores to t = 3 ms, it was stable and took about 1800 s per millisecond of simulated time. The two metals start to mix in the melt pool from about 1.5 ms, and the volume of metal B stayed within 0.003 % of its initial value (the total metal volume, which is conserved by the standard phase-fraction transport, within 0.007 %). The peak temperature reached about 4600 K, 1500 K above the vapourisation temperature: with the vapourisation properties of iron, the evaporative cooling and recoil pressure limit the temperature much less than in EB_3D, the molar mass of which (`Mm 0.446`) is ten times that of Ti-6Al-4V (0.0446 kg/mol), making its evaporation correspondingly stiffer.
+
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 
