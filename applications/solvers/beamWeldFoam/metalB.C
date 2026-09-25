@@ -26,6 +26,7 @@ License
 #include "beamWeldFoam.H"
 #include "fvc.H"
 #include "upwind.H"
+#include "zeroGradientFvPatchFields.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
@@ -152,7 +153,8 @@ void Foam::solvers::beamWeldFoam::readMetalB()
             (
                 IOobject("metalBSurfaceFraction", runTime.name(), mesh),
                 mesh,
-                dimensionedScalar(dimless, 0)
+                dimensionedScalar(dimless, 0),
+                zeroGradientFvPatchScalarField::typeName
             )
         );
     }
@@ -223,26 +225,33 @@ void Foam::solvers::beamWeldFoam::correctMetalBFraction()
     if (metalBSurfaceFraction_.valid())
     {
         // The interface cells on the gas side contain little or no metal,
-        // so the fraction of metal B there is taken from the average over
-        // the neighbouring cells. Without this the surface above metal B
-        // would be treated as metal A.
+        // so the fraction of metal B there is taken from the ratio of the
+        // volume fractions averaged over the neighbouring cells. Without
+        // this the surface above metal B would be treated as metal A.
+        // Averaging twice extends the fraction two cells into the gas, so
+        // that it does not jump within the interface cells, which would
+        // give a spurious solutal Marangoni force where the interface
+        // normal is inexact.
         volScalarField& cS = metalBSurfaceFraction_();
 
-        cS =
+        const volScalarField averageAlphaB(fvc::average(fvc::average(alphaB)));
+        const volScalarField averageAlpha1(fvc::average(fvc::average(alpha1)));
+
+        // The boundary values follow the adjacent cells (zero gradient),
+        // since the ratio of the boundary values would be zero on the gas
+        // side of the interface, giving a spurious gradient along walls
+        cS.internalFieldRef() =
             min
             (
                 max
                 (
-                    fvc::average(alphaB)
-                   /max
-                    (
-                        fvc::average(alpha1),
-                        dimensionedScalar(dimless, small)
-                    ),
+                    averageAlphaB()
+                   /max(averageAlpha1(), dimensionedScalar(dimless, small)),
                     scalar(0)
                 ),
                 scalar(1)
             );
+        cS.correctBoundaryConditions();
 
         if (gradMetalBSurfaceFraction_.valid())
         {
