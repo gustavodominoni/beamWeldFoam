@@ -64,6 +64,15 @@ The liquid-fraction corrector linearises the latent heat source implicitly in th
 
 The evaporative cooling, which grows exponentially with temperature, is likewise linearised implicitly about the current temperature in the energy equation (`evaporationLinearisation`, default `true`). This leaves the solution unchanged until evaporation starts, but keeps the temperature bounded once it does: with the explicit treatment the EB_3D case failed with a negative temperature shortly after the onset of vapourisation (t = 6.3e-5 s), even at its original time step of 2.5e-8 s.
 
+### Welding two different metals
+A second metal is enabled by adding `constant/physicalProperties.metalB` and the field `alpha.metalB` (in `initial/`, set with `setFields`). The metal phase is then a mixture of metal A (`physicalProperties.<phase1>`) and metal B, and `alpha.metalB` is the volume fraction of metal B. It is carried with the metal flux, so the two metals mix in the melt pool. The fraction of the metal that is metal B, `alpha.metalB/alpha.<phase1>`, is written as `metalBFraction`, which shows the mixing (dilution) in the weld.
+
+`physicalProperties.metalB` contains `rho`, `nu`, `cp`, `cpsolid`, `kappa`, `kappasolid`, `Tsolidus`, `Tliquidus`, `LatentHeat` and `beta`. Each of these properties is blended between the two metals by the fraction of metal B. Each metal keeps its own density, and the mixture density, viscosity and mass flux are corrected for it. The surface tension and vapourisation properties in `constant/phaseProperties` remain shared by both metals, and metal B has a constant viscosity.
+
+Without `physicalProperties.metalB` the solver is unchanged: EB_3D_coarse to t = 1e-4 s gives bit-identical results, as does a run with metal B given the properties of metal A. With metal B at twice the density of metal A, the run was stable and the total volume of metal B was conserved exactly.
+
+The `EB_3D_dissimilar` tutorial, based on EB_3D_coarse, welds a plate of 316L stainless steel (x < 0) to one of low-carbon steel (x > 0) along the line between them. The property values are representative only and should be replaced with data for the alloys of interest.
+
 ### Performance tips
 The following case settings trade some accuracy for speed. Validate them against a reference run (e.g. the Gallium and Sen & Davies cases) before relying on them:
 
