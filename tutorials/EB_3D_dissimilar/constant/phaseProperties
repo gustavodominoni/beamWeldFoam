@@ -16,12 +16,13 @@ FoamFile
 
 phases          (phase1 phase2);
 
-// Surface tension [N/m]
+// Surface tension of metal A [N/m]
 sigma           1.8;
 
 
-// beamWeldFoam interface and vapourisation properties
-// Values for iron, shared by both metals
+// beamWeldFoam interface and vapourisation properties of metal A (316L),
+// representative values; those of metal B are set in
+// physicalProperties.metalB
 
 // Temperature coefficient of surface tension [N/m/K]
 dsigmadT        -4.3e-4;

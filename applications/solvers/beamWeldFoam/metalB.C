@@ -62,6 +62,55 @@ void Foam::solvers::beamWeldFoam::readMetalB()
     LatentHeatB_.value() = dict.lookup<scalar>("LatentHeat");
     betaB_.value() = dict.lookup<scalar>("beta");
 
+    // Vapourisation properties, defaulting to those of metal A
+    TvapB_.value() = dict.lookupOrDefault<scalar>("Tvap", Tvap_.value());
+    MmB_.value() = dict.lookupOrDefault<scalar>("Mm", Mm_.value());
+    LatentHeatVapB_.value() =
+        dict.lookupOrDefault<scalar>("LatentHeatVap", LatentHeatVap_.value());
+
+    metalBVapour_ =
+        TvapB_.value() != Tvap_.value()
+     || MmB_.value() != Mm_.value()
+     || LatentHeatVapB_.value() != LatentHeatVap_.value();
+
+    // Surface tension, which can only differ from that of metal A if the
+    // latter is constant
+    if (dict.found("sigma"))
+    {
+        if (mixture.isDict("sigma"))
+        {
+            FatalIOErrorInFunction(dict)
+                << "The surface tension of metal B can only be specified "
+                << "if that of metal A (sigma in "
+                << mixture.relativeObjectPath() << ") is constant"
+                << exit(FatalIOError);
+        }
+
+        sigmaA_.value() = mixture.lookup<scalar>("sigma");
+        sigmaB_.value() = dict.lookup<scalar>("sigma");
+
+        metalBSigma_ = sigmaB_.value() != sigmaA_.value();
+    }
+
+    dsigmadTB_.value() =
+        dict.lookupOrDefault<scalar>
+        (
+            "dsigmadT",
+            Marangoni_Constant_.value()
+        );
+
+    metalBdSigmadT_ = dsigmadTB_.value() != Marangoni_Constant_.value();
+
+    Info<< "    Metal B vapourisation properties "
+        << (metalBVapour_ ? "differ from" : "are the same as")
+        << " those of metal A" << nl
+        << "    Metal B surface tension "
+        << (metalBSigma_ ? "differs from" : "is the same as")
+        << " that of metal A" << nl
+        << "    Metal B surface tension temperature coefficient "
+        << (metalBdSigmadT_ ? "differs from" : "is the same as")
+        << " that of metal A" << endl;
+
     alphaMetalB_.reset
     (
         new volScalarField
@@ -94,6 +143,45 @@ void Foam::solvers::beamWeldFoam::readMetalB()
             dimensionedScalar(dimless, 0)
         )
     );
+
+    if (metalBVapour_ || metalBSigma_ || metalBdSigmadT_)
+    {
+        metalBSurfaceFraction_.reset
+        (
+            new volScalarField
+            (
+                IOobject("metalBSurfaceFraction", runTime.name(), mesh),
+                mesh,
+                dimensionedScalar(dimless, 0)
+            )
+        );
+    }
+
+    if (metalBSigma_)
+    {
+        gradMetalBSurfaceFraction_.reset
+        (
+            new volVectorField
+            (
+                IOobject("gradMetalBSurfaceFraction", runTime.name(), mesh),
+                mesh,
+                dimensionedVector(dimless/dimLength, Zero)
+            )
+        );
+    }
+
+    if (metalBVapour_)
+    {
+        metalBMoleFraction_.reset
+        (
+            new volScalarField
+            (
+                IOobject("metalBMoleFraction", runTime.name(), mesh),
+                mesh,
+                dimensionedScalar(dimless, 0)
+            )
+        );
+    }
 
     alphaPhiMetalB_.reset
     (
@@ -131,6 +219,46 @@ void Foam::solvers::beamWeldFoam::correctMetalBFraction()
             ),
             scalar(1)
         );
+
+    if (metalBSurfaceFraction_.valid())
+    {
+        // The interface cells on the gas side contain little or no metal,
+        // so the fraction of metal B there is taken from the average over
+        // the neighbouring cells. Without this the surface above metal B
+        // would be treated as metal A.
+        volScalarField& cS = metalBSurfaceFraction_();
+
+        cS =
+            min
+            (
+                max
+                (
+                    fvc::average(alphaB)
+                   /max
+                    (
+                        fvc::average(alpha1),
+                        dimensionedScalar(dimless, small)
+                    ),
+                    scalar(0)
+                ),
+                scalar(1)
+            );
+
+        if (gradMetalBSurfaceFraction_.valid())
+        {
+            gradMetalBSurfaceFraction_() = fvc::grad(cS);
+        }
+
+        if (metalBMoleFraction_.valid())
+        {
+            // Convert the volume fraction to the mole fraction for Raoult's
+            // law
+            const volScalarField molesB(cS*rhoB_/MmB_);
+
+            metalBMoleFraction_() =
+                molesB/((1 - cS)*mixture.rho1()/Mm_ + molesB);
+        }
+    }
 }
 
 
@@ -225,6 +353,53 @@ Foam::solvers::beamWeldFoam::metalProperty
     {
         return volScalarField::New(a.name(), mesh, a);
     }
+}
+
+
+Foam::tmp<Foam::volScalarField>
+Foam::solvers::beamWeldFoam::surfaceMetalProperty
+(
+    const dimensionedScalar& a,
+    const dimensionedScalar& b
+) const
+{
+    return a + metalBSurfaceFraction_()*(b - a);
+}
+
+
+Foam::tmp<Foam::volScalarField>
+Foam::solvers::beamWeldFoam::vapourRamp(const dimensionedScalar& Tvap) const
+{
+    return (T_ - (Tvap - (TSmooth_/2.0)))/TSmooth_;
+}
+
+
+Foam::tmp<Foam::volScalarField>
+Foam::solvers::beamWeldFoam::vapourPressure
+(
+    const dimensionedScalar& Tvap,
+    const dimensionedScalar& Mm,
+    const dimensionedScalar& LatentHeatVap
+) const
+{
+    return p0_*exp(LatentHeatVap*Mm*((T_ - Tvap)/(R_*T_*Tvap)));
+}
+
+
+Foam::tmp<Foam::volScalarField>
+Foam::solvers::beamWeldFoam::evaporativeHeatFlux
+(
+    const dimensionedScalar& Tvap,
+    const dimensionedScalar& Mm,
+    const dimensionedScalar& LatentHeatVap
+) const
+{
+    using constant::mathematical::pi;
+
+    return
+        0.82*LatentHeatVap*Mm*p0_
+       *exp(LatentHeatVap*Mm*((T_ - Tvap)/(R_*T_*Tvap)))
+       /sqrt(2.0*pi*Mm*R_*T_);
 }
 
 

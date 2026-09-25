@@ -34,8 +34,6 @@ License
 
 void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
 {
-    using constant::mathematical::pi;
-
     const dimensionedScalar& rho1 = mixture.rho1();
     const dimensionedScalar& rho2 = mixture.rho2();
 
@@ -128,19 +126,60 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
 
         // Evaporative cooling, smoothly switched on over TSmooth around
         // the vapourisation temperature
-        const volScalarField evapRamp
-        (
-            (T_ - (Tvap_ - (TSmooth_/2.0)))/TSmooth_
-        );
+        const volScalarField evapRamp(vapourRamp(Tvap_));
 
         const volScalarField QvFull
         (
-            0.82*LatentHeatVap_*Mm_*p0_
-           *exp(LatentHeatVap_*Mm_*((T_ - Tvap_)/(R_*T_*Tvap_)))
-           /sqrt(2.0*pi*Mm_*R_*T_)
+            evaporativeHeatFlux(Tvap_, Mm_, LatentHeatVap_)
         );
 
         Qv_ = min(max(evapRamp, scalar(0)), scalar(1))*QvFull;
+
+        // Derivative of the evaporative cooling with respect to
+        // temperature, for its linearisation
+        tmp<volScalarField> tdQvdT;
+
+        if (metalBVapour_)
+        {
+            // Sum of the evaporative cooling of the two metals, each
+            // weighted by its mole fraction (Raoult's law) and switched on
+            // around its own vapourisation temperature
+            const volScalarField& xB = metalBMoleFraction_();
+
+            const volScalarField evapRampB(vapourRamp(TvapB_));
+
+            const volScalarField QvFullB
+            (
+                evaporativeHeatFlux(TvapB_, MmB_, LatentHeatVapB_)
+            );
+
+            const volScalarField QvA((1 - xB)*Qv_);
+            const volScalarField QvB
+            (
+                xB*min(max(evapRampB, scalar(0)), scalar(1))*QvFullB
+            );
+
+            Qv_ = QvA + QvB;
+
+            if (evaporationLinearisation_)
+            {
+                tdQvdT =
+                    QvA*(LatentHeatVap_*Mm_/(R_*sqr(T_)) - 0.5/T_)
+                  + (1 - xB)*pos(evapRamp)*pos(1 - evapRamp)*QvFull/TSmooth_
+                  + QvB*(LatentHeatVapB_*MmB_/(R_*sqr(T_)) - 0.5/T_)
+                  + xB*pos(evapRampB)*pos(1 - evapRampB)*QvFullB/TSmooth_;
+            }
+        }
+        else if (evaporationLinearisation_)
+        {
+            tdQvdT =
+                Qv_
+               *(
+                    LatentHeatVap_*Mm_/(R_*sqr(T_))
+                  - 0.5/T_
+                )
+              + pos(evapRamp)*pos(1 - evapRamp)*QvFull/TSmooth_;
+        }
 
         // Temperature consistent with the current liquid fraction
         Tcorr_ = (TLiquidus_ - TSolidus_)*epsilon1_ + TSolidus_;
@@ -186,12 +225,7 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
             (
                 max
                 (
-                    Qv_
-                   *(
-                        LatentHeatVap_*Mm_/(R_*sqr(T_))
-                      - 0.5/T_
-                    )
-                  + pos(evapRamp)*pos(1 - evapRamp)*QvFull/TSmooth_,
+                    tdQvdT,
                     dimensionedScalar(Qv_.dimensions()/dimTemperature, 0)
                 )
             );
