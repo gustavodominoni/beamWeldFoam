@@ -54,9 +54,10 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
     (
         min(max(alpha1, scalar(0)), scalar(1))
     );
+    const volScalarField rhoMetal(metalProperty(rho1, rhoB_));
     const volScalarField mu
     (
-        limitedAlpha1*rho1*mixture.nuModel1().nu()
+        limitedAlpha1*rhoMetal*metalNu()
       + (scalar(1) - limitedAlpha1)*rho2*mixture.nuModel2().nu()
     );
 
@@ -74,7 +75,8 @@ void Foam::solvers::beamWeldFoam::thermophysicalPredictor()
 
     if (damperSwitch_)
     {
-        thermalDamper_ = 2.0*rhoCp/(rho1*cp1_ + rho2*cp2_);
+        thermalDamper_ =
+            2.0*rhoCp/(rhoMetal*metalProperty(cp1_, cpB_) + rho2*cp2_);
     }
 
     // Part of the energy equation which does not change during the

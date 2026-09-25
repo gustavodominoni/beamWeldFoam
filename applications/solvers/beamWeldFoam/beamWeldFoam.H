@@ -123,6 +123,45 @@ protected:
         dimensionedScalar beta2_;
 
 
+    // Optional second metal (metal B)
+    //  Read from constant/physicalProperties.metalB if present. Phase 1 is
+    //  then a mixture of metal A (physicalProperties.<phase1>) and metal B,
+    //  the volume fraction of which is alpha.metalB.
+
+        //- Density of metal B
+        dimensionedScalar rhoB_;
+
+        //- Kinematic viscosity of liquid metal B
+        dimensionedScalar nuB_;
+
+        //- Liquid and solid specific heat capacity of metal B
+        dimensionedScalar cpB_;
+        dimensionedScalar cpBsolid_;
+
+        //- Liquid and solid thermal conductivity of metal B
+        dimensionedScalar kappaB_;
+        dimensionedScalar kappaBsolid_;
+
+        //- Solidus and liquidus temperature of metal B
+        dimensionedScalar TsolidusB_;
+        dimensionedScalar TliquidusB_;
+
+        //- Latent heat of fusion of metal B
+        dimensionedScalar LatentHeatB_;
+
+        //- Thermal expansion coefficient of metal B
+        dimensionedScalar betaB_;
+
+        //- Volume fraction of metal B
+        autoPtr<volScalarField> alphaMetalB_;
+
+        //- Fraction of the metal that is metal B, alpha.metalB/alpha1
+        autoPtr<volScalarField> metalBFraction_;
+
+        //- Volumetric flux of metal B
+        autoPtr<surfaceScalarField> alphaPhiMetalB_;
+
+
     // Interface and vapourisation properties
     //  Read from constant/phaseProperties
 
@@ -320,6 +359,31 @@ protected:
         //- Set the write option of the diagnostic fields from
         //  writeDiagnostics_
         void setDiagnosticsWriteOpt();
+
+        //- Read the properties and volume fraction of metal B, if present
+        void readMetalB();
+
+        //- Update the fraction of the metal that is metal B from the volume
+        //  fractions
+        void correctMetalBFraction();
+
+        //- Transport the volume fraction of metal B with the metal flux
+        void transportMetalB();
+
+        //- Correct the mixture density, viscosity and mass flux for the
+        //  density and viscosity of metal B
+        void correctMetalBDensity();
+
+        //- Return the property of the metal, blended between the values a
+        //  of metal A and b of metal B by the fraction of metal B
+        tmp<volScalarField> metalProperty
+        (
+            const dimensionedScalar& a,
+            const dimensionedScalar& b
+        ) const;
+
+        //- Return the kinematic viscosity of the liquid metal
+        tmp<volScalarField> metalNu() const;
 
         //- Update the mixture thermophysical properties
         void updateProperties();

@@ -313,6 +313,17 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
         readProperty("beta2", dimless/dimTemperature, mixture.nuModel2(), "beta")
     ),
 
+    rhoB_("rhoB", dimDensity, 0),
+    nuB_("nuB", dimKinematicViscosity, 0),
+    cpB_("cpB", dimSpecificHeatCapacity, 0),
+    cpBsolid_("cpBsolid", dimSpecificHeatCapacity, 0),
+    kappaB_("kappaB", dimThermalConductivity, 0),
+    kappaBsolid_("kappaBsolid", dimThermalConductivity, 0),
+    TsolidusB_("TsolidusB", dimTemperature, 0),
+    TliquidusB_("TliquidusB", dimTemperature, 0),
+    LatentHeatB_("LatentHeatB", dimEnergy/dimMass, 0),
+    betaB_("betaB", dimless/dimTemperature, 0),
+
     Marangoni_Constant_
     (
         readProperty
@@ -556,10 +567,16 @@ Foam::solvers::beamWeldFoam::beamWeldFoam(fvMesh& mesh)
     buildCellColumns();
     calcCellGeometry();
 
+    // Read the optional second metal and correct the mixture density and
+    // viscosity for it
+    readMetalB();
+
     // Initialise the mixture properties and liquid fraction from the
     // initial temperature field
-    TSolidus_ = alpha1*Tsolidus1_ + alpha2*Tsolidus2_;
-    TLiquidus_ = alpha1*Tliquidus1_ + alpha2*Tliquidus2_;
+    TSolidus_ =
+        alpha1*metalProperty(Tsolidus1_, TsolidusB_) + alpha2*Tsolidus2_;
+    TLiquidus_ =
+        alpha1*metalProperty(Tliquidus1_, TliquidusB_) + alpha2*Tliquidus2_;
 
     epsilon1_ =
         max
@@ -632,6 +649,14 @@ void Foam::solvers::beamWeldFoam::prePredictor()
     // Solve the phase-fraction equation and update the mixture properties
     // and mass flux
     incompressibleVoF::prePredictor();
+
+    // Transport the second metal and correct the mixture density,
+    // viscosity and mass flux for it
+    if (alphaMetalB_.valid())
+    {
+        transportMetalB();
+        correctMetalBDensity();
+    }
 
     // Cache the phase-fraction gradient used by the momentum and energy
     // equations of this PIMPLE iteration

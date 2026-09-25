@@ -50,7 +50,9 @@ void Foam::solvers::beamWeldFoam::momentumPredictor()
     if (damperSwitch_)
     {
         // To account for high density difference
-        damper_ = 2.0*rho/(mixture.rho1() + mixture.rho2());
+        damper_ =
+            2.0*rho
+           /(metalProperty(mixture.rho1(), rhoB_) + mixture.rho2());
     }
 
     // Recoil pressure
