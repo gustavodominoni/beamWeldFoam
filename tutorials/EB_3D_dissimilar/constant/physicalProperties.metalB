@@ -14,8 +14,6 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-viscosityModel  constant;
-
 // Metal B: low-carbon steel, x > 0, the volume fraction of which is
 // alpha.metalB. The presence of this file enables the second metal.
 // Representative high-temperature values; replace them with data for the
